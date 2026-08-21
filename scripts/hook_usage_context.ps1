@@ -3,7 +3,7 @@ $ErrorActionPreference = "SilentlyContinue"
 $raw = [Console]::In.ReadToEnd(); $inputObject = $null
 try { $inputObject = $raw | ConvertFrom-Json } catch {}
 $dataRoot = if ($env:CODEX_USAGE_GUARD_DATA_DIR) { $env:CODEX_USAGE_GUARD_DATA_DIR } else { Join-Path $env:LOCALAPPDATA "OpenAI\codex-usage-guard" }
-$statePath = Join-Path $dataRoot "state.json"; $context = "Codex Usage Guard v0.1.0 advisory: usage state is unknown or stale. Call evaluate_usage_guard before costly work; this hook never blocks or cancels a tool call."
+$statePath = Join-Path $dataRoot "state.json"; $context = "Codex Usage Guard v0.1.1 advisory: usage state is unknown or stale. Call evaluate_usage_guard before costly work; this hook never blocks or cancels a tool call."
 $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null; $heartbeatTmp = Join-Path $dataRoot ("heartbeat-" + [guid]::NewGuid().ToString() + ".tmp"); Set-Content -LiteralPath $heartbeatTmp -Value $now -Encoding ascii; Move-Item -LiteralPath $heartbeatTmp -Destination (Join-Path $dataRoot "heartbeat.txt") -Force
 if ($EventName -eq "PostToolUse") {
@@ -37,7 +37,7 @@ if ($context -and (Test-Path -LiteralPath $statePath)) {
         $validNumber = $null -ne $remaining -and -not ($remaining -is [bool]) -and ($remaining -is [ValueType]) -and [double]::TryParse([string]$remaining,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$remaining)
         $validFetched = $null -ne $fetched -and -not ($fetched -is [bool]) -and ($fetched -is [ValueType]) -and [double]::TryParse([string]$fetched,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$fetched)
         if ($state.schemaVersion -eq 1 -and $validNumber -and $validFetched -and -not [double]::IsNaN([double]$remaining) -and -not [double]::IsInfinity([double]$remaining) -and [double]$remaining -ge 0 -and [double]$remaining -le 100 -and -not [double]::IsNaN([double]$fetched) -and -not [double]::IsInfinity([double]$fetched) -and @('proceed','watch','checkpoint','critical','unknown') -contains $decision) {
-            $age = [int]($now - [double]$fetched); if ($age -ge 0 -and $age -lt 120) { $context = "Codex Usage Guard v0.1.0 advisory: latest $([double]$remaining)% remaining, age ${age}s, decision $decision. Call evaluate_usage_guard before costly work; this hook never blocks or cancels a tool call." }
+            $age = [int]($now - [double]$fetched); if ($age -ge 0 -and $age -lt 120) { $context = "Codex Usage Guard v0.1.1 advisory: latest $([double]$remaining)% remaining, age ${age}s, decision $decision. Call evaluate_usage_guard before costly work; this hook never blocks or cancels a tool call." }
         }
     } catch {}
 }

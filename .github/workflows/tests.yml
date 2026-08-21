@@ -55,6 +55,6 @@ jobs:
       - name: Build and inspect release package
         shell: pwsh
         run: |
-          ./scripts/package-release.ps1 -Development -Ref HEAD -Output dist/codex-usage-guard-v0.1.0.zip
-          $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path dist/codex-usage-guard-v0.1.0.zip))
+          ./scripts/package-release.ps1 -Development -Ref HEAD -Output dist/codex-usage-guard-v0.1.1.zip
+          $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path dist/codex-usage-guard-v0.1.1.zip))
           try { if (-not ($zip.Entries.FullName -contains '.codex-plugin/plugin.json')) { throw 'manifest missing from package' } } finally { $zip.Dispose() }

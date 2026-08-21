@@ -1,11 +1,11 @@
 [CmdletBinding()]
 param(
-  [string]$Output = 'dist\codex-usage-guard-v0.1.0.zip',
+  [string]$Output = 'dist\codex-usage-guard-v0.1.1.zip',
   [string]$Ref = '',
   [switch]$Development
 )
 $ErrorActionPreference = 'Stop'
-$root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')); $manifestPath = Join-Path $root '.codex-plugin\plugin.json'; $script:Version = '0.1.0'; $script:Name = 'codex-usage-guard'
+$root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')); $manifestPath = Join-Path $root '.codex-plugin\plugin.json'; $script:Version = '0.1.1'; $script:Name = 'codex-usage-guard'
 $allow = @('.codex-plugin','.mcp.json','app_server.py','models.py','policy.py','usage_guard_mcp.py','requirements.txt','pyproject.toml','README.md','SECURITY.md','NOTICE.md','LICENSE','.gitignore','install.ps1','reinstall.ps1','run-mcp.ps1','uninstall.ps1','hooks','scripts','skills','.github')
 $out = if ([IO.Path]::IsPathRooted($Output)) { [IO.Path]::GetFullPath($Output) } else { [IO.Path]::GetFullPath((Join-Path $root $Output)) }; $dist = [IO.Path]::GetFullPath((Join-Path $root 'dist'))
 if (-not $out.StartsWith($dist.TrimEnd('\') + [IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)) { throw 'Output must be inside repository dist.' }
@@ -21,7 +21,7 @@ $zipTemp = Join-Path ([IO.Path]::GetTempPath()) ('codex-usage-guard-package-' + 
 try {
   if ($hasHead) {
     $dirty = Invoke-Git @('status','--porcelain'); if ($dirty.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace(($dirty -join ''))) { throw 'Packaging requires a clean git tree when HEAD exists.' }
-    if (-not $Ref) { if($Development){$Ref='HEAD'} else { throw 'Release mode requires -Ref v0.1.0.' } }
+    if (-not $Ref) { if($Development){$Ref='HEAD'} else { throw 'Release mode requires -Ref v0.1.1.' } }
     $refCommit = ([string]((Invoke-Git @('rev-parse',($Ref + '^{commit}')))[0])).Trim()
     if (-not $Development) {
       if ($Ref -ne ('v' + $script:Version)) { throw "Release mode requires exact annotated tag v$($script:Version)." }

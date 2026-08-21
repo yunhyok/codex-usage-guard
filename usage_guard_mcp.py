@@ -9,7 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from app_server import APP_NAME, APP_VERSION, _provider, save_cache
 from policy import evaluate
 
-mcp = FastMCP("codex-usage-guard", instructions="Codex Usage Guard v0.1.0 provides advisory rate-limit checkpoints.")
+mcp = FastMCP("codex-usage-guard", instructions="Codex Usage Guard v0.1.1 provides advisory rate-limit checkpoints.")
 
 
 def _json(value: dict[str, Any]) -> str:

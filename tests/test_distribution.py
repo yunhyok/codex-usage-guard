@@ -10,8 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_manifest_and_mcp_contract():
     manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
     assert manifest["name"] == "codex-usage-guard"
-    assert manifest["version"] == "0.1.0"
-    assert manifest["interface"]["displayName"] == "Codex Usage Guard v0.1.0"
+    assert manifest["version"] == "0.1.1"
+    assert manifest["interface"]["displayName"] == "Codex Usage Guard v0.1.1"
+    assert 'version = "0.1.1"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'APP_VERSION = "0.1.1"' in (ROOT / "app_server.py").read_text(encoding="utf-8")
     assert isinstance(manifest["interface"]["defaultPrompt"], list)
     assert "hooks" not in manifest
     config = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))
@@ -35,7 +37,7 @@ def test_hooks_are_advisory_and_rate_limited():
     hooks = json.loads((ROOT / "hooks/hooks.json").read_text(encoding="utf-8"))["hooks"]
     assert "UserPromptSubmit" in hooks and "PostToolUse" in hooks
     post = hooks["PostToolUse"][0]
-    assert "usage_guard" in post["matcher"]
+    assert post["matcher"] == "" and "(?" not in post["matcher"]
     command = post["hooks"][0]
     assert "commandWindows" in command and "PLUGIN_ROOT" in command["commandWindows"]
     script = (ROOT / "scripts/hook_usage_context.ps1").read_text(encoding="utf-8")

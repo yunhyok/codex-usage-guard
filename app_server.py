@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 
 from models import Snapshot, UsagePayloadError, merge_notification, parse_usage_activity, snapshot_from_cache, snapshot_from_result
 
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.1.1"
 APP_NAME = "Codex Usage Guard"
 POLL_SECONDS = 60.0
 STALE_SECONDS = 120.0

@@ -1,6 +1,6 @@
 {
   "hooks": {
     "UserPromptSubmit": [{"matcher": "", "hooks": [{"type": "command", "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}\\scripts\\hook_usage_context.ps1\" -EventName UserPromptSubmit", "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}\\scripts\\hook_usage_context.ps1\" -EventName UserPromptSubmit", "timeout": 5}]}],
-    "PostToolUse": [{"matcher": "^(?!.*usage_guard).*$", "hooks": [{"type": "command", "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}\\scripts\\hook_usage_context.ps1\" -EventName PostToolUse", "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}\\scripts\\hook_usage_context.ps1\" -EventName PostToolUse", "timeout": 5}]}]
+    "PostToolUse": [{"matcher": "", "hooks": [{"type": "command", "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}\\scripts\\hook_usage_context.ps1\" -EventName PostToolUse", "commandWindows": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${PLUGIN_ROOT}\\scripts\\hook_usage_context.ps1\" -EventName PostToolUse", "timeout": 5}]}]
   }
 }

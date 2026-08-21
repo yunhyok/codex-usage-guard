@@ -11,4 +11,4 @@ Treat the returned decision as policy: `proceed` (>40%), `watch` (>25-40%), `che
 
 For `watch`, do not start new parallel delegation or a large expensive phase; finish only the current atomic operation, then checkpoint. For `checkpoint` or `critical`, do not start new expensive delegation/build work; save a concise state summary and ask the user whether to continue. The tool cannot cancel the currently running Codex request and hooks are advisory context only. Never read or request API keys, ChatGPT tokens, or config secrets.
 
-The plugin polls the official Codex App Server (`account/rateLimits/read`) and merges `account/rateLimits/updated` notifications. `account/usage/read` is an optional activity summary and never changes the quota decision. Keep the product name and version visible: Codex Usage Guard v0.1.0.
+The plugin polls the official Codex App Server (`account/rateLimits/read`) and merges `account/rateLimits/updated` notifications. `account/usage/read` is an optional activity summary and never changes the quota decision. Keep the product name and version visible: Codex Usage Guard v0.1.1.
