@@ -1,0 +1,60 @@
+name: tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python -m pip install -r requirements.txt pytest
+      - run: python -m pytest -q
+      - name: Validate usage-aware workflow skill
+        shell: pwsh
+        run: |
+          $validator = "$env:USERPROFILE\.codex\skills\.system\skill-creator\scripts\quick_validate.py"
+          if (Test-Path -LiteralPath $validator) { python $validator .\skills\usage-aware-workflow }
+          else {
+            $skill = Get-Content -LiteralPath .\skills\usage-aware-workflow\SKILL.md -Raw
+            if ($skill -notmatch '(?m)^name:\s*usage-aware-workflow' -or $skill -notmatch '(?m)^description:') { throw 'Skill structure check failed.' }
+            Write-Host 'skill-creator validator unavailable; inline structure check passed.'
+          }
+      - name: Validate plugin manifest when validator is available
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "$env:USERPROFILE\.codex\skills\.system\plugin-creator\scripts\validate_plugin.py",
+            "$env:USERPROFILE\.codex\skills\.system\plugin-creator\scripts\quick_validate.py"
+          )
+          $validator = $candidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if ($validator) { python $validator . } else { Write-Host 'Plugin validator not installed; manifest and package checks continue.' }
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: |
+          $errors = @()
+          Get-ChildItem -LiteralPath . -Recurse -File -Include *.ps1 | ForEach-Object {
+            $tokens = $null; $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count) { $errors += "$($_.FullName): $($parseErrors -join '; ')" }
+          }
+          if ($errors.Count) { throw ($errors -join "`n") }
+      - name: Scan tracked content for obvious secrets
+        shell: pwsh
+        run: |
+          $pattern = '(?i)-----BEGIN [A-Z0-9 ]+ PRIVATE KEY-----|(?:sk-(?:proj-)?[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{16,}|xoxb-[A-Za-z0-9-]{16,})|Bearer\s+[A-Za-z0-9._-]{30,}'
+          $hits = @()
+          git ls-files | ForEach-Object {
+            if (Test-Path -LiteralPath $_ -PathType Leaf) {
+              $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($_))
+              if ($text -match $pattern) { $hits += $_ }
+            }
+          }
+          if ($hits.Count) { throw "Potential secret content found: $($hits -join ', ')" }
+      - name: Build and inspect release package
+        shell: pwsh
+        run: |
+          ./scripts/package-release.ps1 -Development -Ref HEAD -Output dist/codex-usage-guard-v0.1.0.zip
+          $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path dist/codex-usage-guard-v0.1.0.zip))
+          try { if (-not ($zip.Entries.FullName -contains '.codex-plugin/plugin.json')) { throw 'manifest missing from package' } } finally { $zip.Dispose() }

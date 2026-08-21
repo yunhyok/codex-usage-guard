@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Usage Guard v0.1.0"
+  short_description: "Check Codex usage before costly work"
+  default_prompt: "$usage-aware-workflow Check current Codex usage before this task"

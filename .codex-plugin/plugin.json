@@ -1,0 +1,24 @@
+{
+  "name": "codex-usage-guard",
+  "version": "0.1.0",
+  "description": "Advisory Codex usage checks for long-running work.",
+  "author": {
+    "name": "Yunhyok",
+    "url": "https://github.com/yunhyok"
+  },
+  "homepage": "https://github.com/yunhyok/codex-usage-guard",
+  "repository": "https://github.com/yunhyok/codex-usage-guard",
+  "license": "MIT",
+  "keywords": ["codex", "usage", "rate-limit", "mcp", "workflow"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Usage Guard v0.1.0",
+    "shortDescription": "Check Codex limits before costly work.",
+    "longDescription": "Reads Codex App Server rate limits without handling credentials and injects advisory checkpoints into long tasks.",
+    "developerName": "Yunhyok",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read"],
+    "defaultPrompt": ["Check Codex usage before this long task.", "Evaluate remaining Codex limits."]
+  },
+  "mcpServers": "./.mcp.json"
+}

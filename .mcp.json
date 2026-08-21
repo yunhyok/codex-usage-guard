@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "codex_usage_guard": {
+      "command": "powershell.exe",
+      "args": ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", "./run-mcp.ps1"],
+      "cwd": ".",
+      "startup_timeout_sec": 20,
+      "tool_timeout_sec": 60
+    }
+  }
+}

@@ -1,0 +1,1 @@
+Protocol and model lineage: adapted from the local Codex Usage Indicator implementation by Yunhyok, especially its Codex App Server JSONL lifecycle, rate-limit window parsing, sparse notification merge, and credential-safe diagnostics. This plugin does not modify or bundle that application.
