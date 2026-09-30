@@ -203,7 +203,7 @@ def test_package_rejects_dirty_head_and_clean_archive_is_allowlisted(tmp_path: P
     (repo / ".git").mkdir()
     def git(*args: str):
         return subprocess.run(["git", "-C", str(repo), *args], check=True, text=True, capture_output=True)
-    git("init", "-q"); git("config", "user.email", "test@example.invalid"); git("config", "user.name", "Test"); git("add", "."); git("commit", "-qm", "initial"); git("tag", "-a", "v0.1.1", "-m", "release")
+    git("init", "-q"); git("config", "user.email", "test@example.invalid"); git("config", "user.name", "Test"); git("add", "."); git("commit", "-qm", "initial"); git("tag", "-a", "v0.2.0", "-m", "release")
     original = (repo / "README.md").read_bytes()
     (repo / "README.md").write_bytes(original + b"dirty\n")
     script = repo / "scripts" / "package-release.ps1"
@@ -211,10 +211,10 @@ def test_package_rejects_dirty_head_and_clean_archive_is_allowlisted(tmp_path: P
     assert failed.returncode != 0
     (repo / "README.md").write_bytes(original)
     run_ps(script, "-Development", "-Ref", "HEAD", "-Output", "dist/release.zip")
-    run_ps(script, "-Ref", "v0.1.1", "-Output", "dist/tagged.zip")
+    run_ps(script, "-Ref", "v0.2.0", "-Output", "dist/tagged.zip")
     (repo / "README.md").write_bytes(original + b"next commit\n")
     git("add", "README.md"); git("commit", "-qm", "next")
-    stale = run_ps(script, "-Ref", "v0.1.1", "-Output", "dist/stale.zip", check=False)
+    stale = run_ps(script, "-Ref", "v0.2.0", "-Output", "dist/stale.zip", check=False)
     assert stale.returncode != 0
     archive = repo / "dist" / "release.zip"
     with zipfile.ZipFile(archive) as zf:
@@ -222,7 +222,7 @@ def test_package_rejects_dirty_head_and_clean_archive_is_allowlisted(tmp_path: P
         assert ".codex-plugin/plugin.json" in names
         assert not any("/tests/" in f"/{n}" or n.endswith("/.env") or "__pycache__" in n for n in names)
         manifest = json.loads(zf.read(".codex-plugin/plugin.json"))
-        assert manifest["version"] == "0.1.1"
+        assert manifest["version"] == "0.2.0"
     expected = hashlib.sha256(archive.read_bytes()).hexdigest()
     assert expected.lower() in (archive.with_suffix(".zip.sha256")).read_text(encoding="ascii").lower()
 
