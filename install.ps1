@@ -7,8 +7,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$script:Product = "Codex Usage Guard v0.2.0"
-$script:Version = "0.2.0"
+$script:Product = "Codex Usage Guard v0.2.1"
+$script:Version = "0.2.1"
 $script:PluginName = "codex-usage-guard"
 $script:Root = [IO.Path]::GetFullPath((Split-Path -Parent $MyInvocation.MyCommand.Path))
 $script:DataRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA "OpenAI\codex-usage-guard"))

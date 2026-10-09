@@ -6,7 +6,7 @@ param(
   [string]$PluginInstallRoot = ""
 )
 $ErrorActionPreference = 'Stop'
-$product = 'Codex Usage Guard v0.2.0'; $pluginName = 'codex-usage-guard'; $dataRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'OpenAI\codex-usage-guard')); $configPath = Join-Path $dataRoot 'plugin-config.json'
+$product = 'Codex Usage Guard v0.2.1'; $pluginName = 'codex-usage-guard'; $dataRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'OpenAI\codex-usage-guard')); $configPath = Join-Path $dataRoot 'plugin-config.json'
 function Write-AtomicText([string]$Path, [string]$Text) {
   $parent = Split-Path -Parent $Path; New-Item -ItemType Directory -Path $parent -Force | Out-Null; $tmp = Join-Path $parent ('.' + [IO.Path]::GetFileName($Path) + '.' + [guid]::NewGuid().ToString('N') + '.tmp')
   try { $bytes=[Text.UTF8Encoding]::new($false).GetBytes($Text); $s=[IO.File]::Open($tmp,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None); try {$s.Write($bytes,0,$bytes.Length);$s.Flush($true)} finally {$s.Dispose()}; Move-Item -LiteralPath $tmp -Destination $Path -Force } finally { if(Test-Path -LiteralPath $tmp){Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue} }

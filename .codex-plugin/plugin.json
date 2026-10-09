@@ -1,6 +1,6 @@
 {
   "name": "codex-usage-guard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Advisory Codex usage checks for long-running work.",
   "author": {
     "name": "Yunhyok",
@@ -13,7 +13,7 @@
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json",
   "interface": {
-    "displayName": "Codex Usage Guard v0.2.0",
+    "displayName": "Codex Usage Guard v0.2.1",
     "shortDescription": "Check Codex limits before costly work.",
     "longDescription": "Reads Codex App Server rate limits without handling credentials and injects advisory checkpoints into long tasks.",
     "developerName": "Yunhyok",

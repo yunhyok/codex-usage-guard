@@ -78,18 +78,14 @@ def test_launcher_rejects_invalid_schema_without_global_python_fallback():
         assert result.returncode != 0 and "schema" in (result.stdout + result.stderr).lower()
 
 
-def test_release_archive_contains_allowlisted_files_only():
-    with tempfile.TemporaryDirectory() as temp:
-        output = Path(temp) / "artifact.zip"
-        result = subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ROOT / "scripts/package-release.ps1"), "-Development", "-Output", str(ROOT / "dist" / "test-runtime.zip")], capture_output=True, text=True, timeout=30)
-        assert result.returncode == 0
-        archive = ROOT / "dist" / "test-runtime.zip"
-        try:
-            with zipfile.ZipFile(archive) as zf:
-                names = zf.namelist()
-                assert not any("__pycache__" in name or ".venv" in name for name in names)
-        finally:
-            archive.unlink(missing_ok=True); (archive.with_suffix(archive.suffix + ".sha256")).unlink(missing_ok=True)
+def test_release_archive_contains_allowlisted_files_only(tmp_path):
+    source = tmp_path / "source"
+    shutil.copytree(ROOT, source, ignore=shutil.ignore_patterns(".git", ".venv", "__pycache__", ".pytest_cache", "dist"))
+    archive = source / "dist" / "test-runtime.zip"
+    result = subprocess.run(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(source / "scripts/package-release.ps1"), "-Development", "-Output", str(archive)], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+    assert result.returncode == 0, result.stderr
+    with zipfile.ZipFile(archive) as zf:
+        assert not any("__pycache__" in name or ".venv" in name for name in zf.namelist())
 
 
 def test_personal_marketplace_plugins_upsert_preserves_existing_entry():

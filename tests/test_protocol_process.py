@@ -51,20 +51,20 @@ def test_reached_null_keeps_old_windows_but_schedules_full_refresh():
     assert provider.snapshot.min_remaining == 80 and provider.snapshot.fetched_at == before and provider.refresh_needed
 
 
-def test_reached_nonnull_is_authoritative_and_bumps_generation():
+def test_reached_nonnull_is_authoritative_and_refreshes_timestamp():
     provider = AppServerProvider(); provider.snapshot = snapshot_from_result({"rateLimits": {"limitId": "codex", "primary": {"usedPercent": 20}}})
     before = provider.snapshot.fetched_at
     provider._handle_notification({"method": "account/rateLimits/updated", "params": {"rateLimits": {"limitId": "codex", "rateLimitReachedType": "primary"}}})
     assert provider.snapshot.buckets[0].reached_type == "primary"
-    assert provider.snapshot.fetched_at >= before and provider.snapshot_generation == 1
+    assert provider.snapshot.fetched_at >= before
 
 
-def test_other_bucket_and_metadata_do_not_discard_full_response():
+def test_other_bucket_and_metadata_do_not_refresh_timestamp():
     provider = AppServerProvider(); provider.snapshot = snapshot_from_result({"rateLimits": {"limitId": "codex", "primary": {"usedPercent": 20}}})
-    generation = provider.snapshot_generation
+    before = provider.snapshot.fetched_at
     provider._handle_notification({"method": "account/rateLimits/updated", "params": {"rateLimits": {"limitId": "spark", "limitName": "metadata"}}})
     provider._handle_notification({"method": "account/rateLimits/updated", "params": {"rateLimits": {"limitId": "codex", "planType": "pro"}}})
-    assert provider.snapshot_generation == generation and not provider.refresh_needed
+    assert provider.snapshot.fetched_at == before and not provider.refresh_needed
 
 
 def test_waiter_cycle_has_its_own_result_and_error():
@@ -159,7 +159,7 @@ for line in sys.stdin:
         print(json.dumps({"id":m["id"],"result":{"rateLimits":{"limitId":"codex","primary":{"usedPercent":30}}}}),flush=True)
     elif m.get("method")=="crash": break
 '''
-    proc = subprocess.Popen([sys.executable, "-u", "-c", code], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+    proc = subprocess.Popen([sys.executable, "-u", "-c", code], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, bufsize=1)
     provider = AppServerProvider(); messages = queue.Queue(); provider.process = proc; provider.stdin = proc.stdin; provider.messages = messages
     reader = threading.Thread(target=provider._read_loop, args=(proc.stdout, messages), daemon=True); reader.start()
     provider._send_raw({"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "test"}}})

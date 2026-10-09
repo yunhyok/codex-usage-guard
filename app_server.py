@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 
 from models import Snapshot, UsagePayloadError, merge_notification, parse_usage_activity, snapshot_from_cache, snapshot_from_result
 
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.2.1"
 APP_NAME = "Codex Usage Guard"
 POLL_SECONDS = 60.0
 STALE_SECONDS = 120.0
@@ -33,6 +33,7 @@ class RefreshCycle:
     result: Snapshot | None = None
     error: Exception | None = None
     include_activity: bool = False
+    notifications: list[dict[str, Any]] = field(default_factory=list)
 
 
 def redact(value: str) -> str:
@@ -94,12 +95,13 @@ def probe_candidate(path: Path, timeout: float = 15.0, *, deadline: float | None
         if vp.returncode != 0 or result["version"] is None:
             result["error"] = "version rejected"; return result
         if time.monotonic() >= absolute_deadline: result["error"] = "probe timeout"; return result
-        proc = subprocess.Popen([str(path), "app-server", "-c", 'service_tier="fast"'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", bufsize=1, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        proc = subprocess.Popen([str(path), "app-server", "-c", 'service_tier="fast"'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace", bufsize=1, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
         if proc.stdin is None or proc.stdout is None: raise RuntimeError("stdio unavailable")
         q: queue.Queue[str | None] = queue.Queue()
         def pump() -> None:
             assert proc.stdout is not None
-            for line in proc.stdout: q.put(line)
+            with proc.stdout:
+                for line in proc.stdout: q.put(line)
             q.put(None)
         threading.Thread(target=pump, daemon=True).start()
         def call(payload: dict[str, Any], request_id: int | None) -> dict[str, Any]:
@@ -147,7 +149,7 @@ class AppServerProvider:
         self.process: subprocess.Popen[str] | None = None; self.stdin = None; self.messages: queue.Queue[str | None] = queue.Queue()
         self.reader: threading.Thread | None = None; self.worker: threading.Thread | None = None
         self.next_id = 1; self.pending: dict[int, tuple[threading.Event, dict[str, Any]]] = {}
-        self.snapshot: Snapshot | None = None; self.activity: dict[str, Any] | None = None; self.last_error = ""; self.snapshot_generation = 0
+        self.snapshot: Snapshot | None = None; self.activity: dict[str, Any] | None = None; self.last_error = ""
         self.refresh_state_lock = threading.Lock(); self.refresh_cycle: RefreshCycle | None = None; self.refresh_needed = False
         self.selected_candidate: str | None = None; self.selected_version: str | None = None
         self.stderr_tail: deque[str] = deque(maxlen=20)
@@ -160,7 +162,7 @@ class AppServerProvider:
     def _poll_loop(self) -> None:
         while not self.stop_event.is_set():
             try:
-                self.read(force=True, include_usage=False)
+                self.status(force=True, include_usage=False)
             except Exception as exc: self.last_error = redact(str(exc))
             self.stop_event.wait(self.poll_seconds)
 
@@ -200,18 +202,19 @@ class AppServerProvider:
             self.ensure_lock.release()
 
     def _read_loop(self, stream: Any, messages: queue.Queue[str | None]) -> None:
-        for line in stream:
-            raw = line.rstrip("\r\n")
-            try:
-                payload = json.loads(raw)
-            except json.JSONDecodeError:
-                continue
-            if self.messages is not messages:
-                return
-            if isinstance(payload, dict) and payload.get("id") == 1:
-                messages.put(raw)
-            elif isinstance(payload, dict):
-                self._handle_notification(payload)
+        with stream:
+            for line in stream:
+                raw = line.rstrip("\r\n")
+                try:
+                    payload = json.loads(raw)
+                except json.JSONDecodeError:
+                    continue
+                if self.messages is not messages:
+                    return
+                if isinstance(payload, dict) and payload.get("id") == 1:
+                    messages.put(raw)
+                elif isinstance(payload, dict):
+                    self._handle_notification(payload)
         # EOF/crash must wake all outstanding callers immediately.  The reader
         # is process-generation scoped by its private queue; stale responses
         # therefore cannot satisfy a new candidate's waiters.
@@ -224,9 +227,10 @@ class AppServerProvider:
             self.pending.clear()
 
     def _stderr_loop(self, stream: Any) -> None:
-        for line in stream:
-            value = redact(line)
-            if value: self.stderr_tail.append(value)
+        with stream:
+            for line in stream:
+                value = redact(line)
+                if value: self.stderr_tail.append(value)
 
     def _send_raw(self, payload: MappingLike) -> None:
         if self.stdin is None: raise RuntimeError("App Server stdin unavailable")
@@ -266,11 +270,12 @@ class AppServerProvider:
             if payload.get("method") == "account/rateLimits/updated" and isinstance(payload.get("params"), dict):
                 try:
                     self.snapshot = merge_notification(payload["params"], self.snapshot)
+                    cycle = self.refresh_cycle
+                    if cycle is not None:
+                        cycle.notifications.append(payload["params"])
                     raw_limits = payload["params"].get("rateLimits", {})
                     if isinstance(raw_limits, dict) and str(raw_limits.get("limitId")) == "codex":
-                        meaningful_window = any(isinstance(raw_limits.get(key), dict) and "usedPercent" in raw_limits.get(key, {}) for key in ("primary", "secondary"))
-                        if meaningful_window or ("rateLimitReachedType" in raw_limits and raw_limits.get("rateLimitReachedType") is not None): self.snapshot_generation += 1
-                        elif "rateLimitReachedType" in raw_limits and raw_limits.get("rateLimitReachedType") is None: self.refresh_needed = True
+                        if "rateLimitReachedType" in raw_limits and raw_limits.get("rateLimitReachedType") is None: self.refresh_needed = True
 
                 except UsagePayloadError:
                     # An unrelated or malformed sparse notification cannot be
@@ -298,16 +303,17 @@ class AppServerProvider:
             if cycle.result is None: raise RuntimeError("refresh produced no snapshot")
             return cycle.result
         try:
-            generation = self.snapshot_generation
             # Consume a pre-existing refresh request; notifications arriving
             # during this cycle set it again and are preserved for the next one.
             self.refresh_needed = False
             response = self._request("account/rateLimits/read", deadline=absolute)
             result = response.get("result")
-            # A codex notification received while the request was in flight is
-            # newer than the response; retain it instead of regressing state.
-            if self.snapshot_generation == generation or self.snapshot is None:
-                self.snapshot = snapshot_from_result(result, source="app-server")
+            # Overlay newer deltas without discarding windows from the full read.
+            with self.lock:
+                snapshot = snapshot_from_result(result, source="app-server")
+                for params in cycle.notifications:
+                    snapshot = merge_notification(params, snapshot)
+                self.snapshot = snapshot
             if include_usage:
                 try: self.activity = parse_usage_activity(self._request("account/usage/read", deadline=absolute).get("result")); cycle.include_activity = True
                 except Exception: self.activity = None

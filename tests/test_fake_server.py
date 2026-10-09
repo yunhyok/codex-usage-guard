@@ -1,8 +1,58 @@
+import io
+import json
 import threading
 import time
 
-from app_server import AppServerProvider, redact
+from app_server import AppServerProvider, RefreshCycle, redact
 from models import snapshot_from_result
+from policy import evaluate
+
+
+def test_background_poll_refreshes_hook_cache(tmp_path, monkeypatch):
+    monkeypatch.setenv("CODEX_USAGE_GUARD_DATA_DIR", str(tmp_path))
+    provider = AppServerProvider()
+    provider.start = lambda: None
+    provider._ensure = lambda deadline=None: None
+    provider._request = lambda *args, **kwargs: {"result": {"rateLimits": {"limitId": "codex", "primary": {"usedPercent": 26}}}}
+    monkeypatch.setattr(provider.stop_event, "wait", lambda timeout: provider.stop_event.set())
+    provider._poll_loop()
+    cached = json.loads((tmp_path / "state.json").read_text(encoding="utf-8"))
+    assert cached["fetchedAt"] == provider.snapshot.fetched_at
+    assert cached["minRemainingPercent"] == 74 and cached["decision"] == "proceed"
+
+
+def test_inflight_notifications_preserve_full_response_windows():
+    provider = AppServerProvider()
+    provider.start = lambda: None
+    provider._ensure = lambda deadline=None: None
+
+    def request(*args, **kwargs):
+        for used in (15, 20):
+            provider._handle_notification({"method": "account/rateLimits/updated", "params": {"rateLimits": {"limitId": "codex", "primary": {"usedPercent": used}}}})
+        return {"result": {"rateLimits": {"limitId": "codex", "primary": {"usedPercent": 10, "windowDurationMins": 300}, "secondary": {"usedPercent": 95}}}}
+
+    provider._request = request
+    snapshot = provider.read(force=True, include_usage=False)
+    bucket = snapshot.buckets[0]
+    assert bucket.primary.used_percent == 20 and bucket.primary.window_duration_mins == 300
+    assert bucket.secondary is not None and bucket.secondary.used_percent == 95
+    assert evaluate(snapshot)["decision"] == "critical"
+
+
+def test_notification_captures_cycle_before_completion():
+    class CompletingProvider(AppServerProvider):
+        def __getattribute__(self, name):
+            value = super().__getattribute__(name)
+            if name == "refresh_cycle":
+                self.refresh_cycle = None
+            return value
+
+    provider = CompletingProvider()
+    cycle = RefreshCycle()
+    provider.refresh_cycle = cycle
+    params = {"rateLimits": {"limitId": "codex", "primary": {"usedPercent": 20}}}
+    provider._handle_notification({"method": "account/rateLimits/updated", "params": params})
+    assert cycle.notifications == [params]
 
 
 def test_fake_jsonl_response_releases_waiter():
@@ -32,8 +82,9 @@ def test_eof_fails_pending_waiter_immediately():
     provider = AppServerProvider()
     event = threading.Event(); result = {}
     provider.pending[9] = (event, result); provider.messages = __import__("queue").Queue()
-    provider._read_loop(iter(()), provider.messages)
-    assert event.wait(0.2) and "error" in result
+    stream = io.StringIO("")
+    provider._read_loop(stream, provider.messages)
+    assert event.wait(0.2) and "error" in result and stream.closed
 
 
 def test_overlapping_force_refreshes_coalesce(monkeypatch):
